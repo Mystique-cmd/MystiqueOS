@@ -55,7 +55,7 @@ qemu-system-x86_64 -drive format=raw,file=bootloader.bin
 
 A QEMU window will open showing:
 ```
-Hellow, Welcome to Mystique OS!
+Hello, Welcome to Mystique OS!
 ```
 
 The bootloader will then enter an infinite loop and wait (this is normal). To exit QEMU, press `Ctrl+Alt+Q` or close the window.
@@ -63,7 +63,7 @@ The bootloader will then enter an infinite loop and wait (this is normal). To ex
 ## What the Bootloader Does
 
 1. **Initializes registers** - Sets up segment registers and stack pointer
-2. **Prints a message** - Displays "Hellow, Welcome to Mystique OS!" using BIOS interrupt 0x10
+2. **Prints a message** - Displays "Hello, Welcome to Mystique OS!" using BIOS interrupt 0x10
 3. **Infinite loop** - Uses `jmp $` to wait indefinitely
 
 ## Files

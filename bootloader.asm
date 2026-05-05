@@ -1,13 +1,12 @@
 ; This is a minimal 512-byte boot sector
- org 0x7C00
- address 0x7C00
- 
- bits 16
+org 0x7C00
+
+bits 16
 ;--The use of the  16 bit registers is because the CPU starts in real mode during boot 
  start:
  	xor ax, ax
  	mov ds, ax
- 	mov ex, ax
+ 	mov es, ax
  	mov ss, ax
  	mov sp, 0x7C00
  	
