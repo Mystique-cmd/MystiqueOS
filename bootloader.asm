@@ -3,7 +3,7 @@
  address 0x7C00
  
  bits 16
- 
+;--The use of the  16 bit registers is because the CPU starts in real mode during boot 
  start:
  	xor ax, ax
  	mov ds, ax
@@ -22,13 +22,13 @@
  	je .done
  	
  	mov ah, 0x0E
- 	mov bh, 0
- 	mov bl, 0x07
+ 	mov bh, 0	;--Page Number
+ 	mov bl, 0x07 ;--Color attribute
  	int 0x10
  	jmp .loop
  .done:
  	ret
  	
- message db "Hellow, Welcome to Mystique OS!"
+ message db "Hello, Welcome to Mystique OS!"
  times 510 - ($ - $$) db 0
  dw 0xAA55
