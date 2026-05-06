@@ -1,6 +1,6 @@
 # Mystique OS Bootloader
 
-A minimal 512-byte x86 boot sector that displays a welcome message.
+A 512-byte x86 boot sector that loads the OS kernel from disk and transfers control to it.
 
 ## Prerequisites
 
@@ -31,53 +31,110 @@ brew install nasm qemu
 - Download NASM from https://www.nasm.us/
 - Download QEMU from https://www.qemu.org/download/
 
-## Running the Bootloader
+## Running the Bootloader and Kernel
 
-### Step 1: Assemble the Bootloader
+### Step 1: Assemble the Bootloader and Kernel
 
-Convert the assembly source file into a bootable binary:
+Convert the assembly source files into binary:
 
 ```bash
 nasm -f bin bootloader.asm -o bootloader.bin
+nasm -f bin kernel.asm -o kernel.bin
 ```
 
-This creates a `bootloader.bin` file (512 bytes).
+This creates:
+- `bootloader.bin` - 512 bytes (bootloader)
+- `kernel.bin` - At least 512 bytes (kernel)
 
-### Step 2: Run in QEMU
+### Step 2: Create a Disk Image
 
-Boot the binary in QEMU emulator:
+Create a raw disk image containing the bootloader and kernel:
 
 ```bash
-qemu-system-x86_64 -drive format=raw,file=bootloader.bin
+# Create a 1MB disk image filled with zeros
+dd if=/dev/zero of=disk.img bs=1M count=1
+
+# Write bootloader to sector 0 (boot sector)
+dd if=bootloader.bin of=disk.img bs=512 count=1 conv=notrunc
+
+# Write kernel to sector 1+
+dd if=kernel.bin of=disk.img bs=512 seek=1 conv=notrunc
+```
+
+### Step 3: Run in QEMU
+
+Boot the disk image in QEMU:
+
+```bash
+qemu-system-x86_64 -drive format=raw,file=disk.img
 ```
 
 ### Expected Output
 
-A QEMU window will open showing:
+The QEMU window will display:
 ```
-Hello, Welcome to Mystique OS!
+Mystique OS Bootloader
+Loading kernel...
+Kernel loaded successfully! Entering kernel...
+Kernel loaded and running!
 ```
 
-The bootloader will then enter an infinite loop and wait (this is normal). To exit QEMU, press `Ctrl+Alt+Q` or close the window.
+Then it will hang in an infinite loop (normal behavior). To exit QEMU, press `Ctrl+Alt+Q` or close the window.
 
 ## What the Bootloader Does
 
-1. **Initializes registers** - Sets up segment registers and stack pointer
-2. **Prints a message** - Displays "Hello, Welcome to Mystique OS!" using BIOS interrupt 0x10
-3. **Infinite loop** - Uses `jmp $` to wait indefinitely
+1. **Displays boot messages** - Shows loading status
+2. **Loads kernel from disk** - Reads sectors 1+ from the hard disk using BIOS int 0x13
+3. **Verifies load success** - Checks if kernel loaded without errors
+4. **Transfers control** - Jumps to kernel entry point at 0x10000
+
+## Bootloader Configuration
+
+Edit these constants in `bootloader.asm` to customize behavior:
+
+```asm
+KERNEL_ADDR equ 0x10000		; Memory address to load kernel
+KERNEL_SECTORS equ 10			; Number of sectors to read (each = 512 bytes)
+KERNEL_SECTOR_START equ 1		; Starting sector on disk (1 = after bootloader)
+```
+
+**Sector sizes:**
+- 1 sector = 512 bytes
+- 10 sectors = 5,120 bytes (default)
+- Adjust based on your kernel size
 
 ## Files
 
-- `bootloader.asm` - The assembly source code
-- `bootloader.bin` - The compiled binary (created after running Step 1)
+- `bootloader.asm` - Bootloader source code (loads kernel from disk)
+- `kernel.asm` - Kernel source code (entry point for OS)
+- `bootloader.bin` - Compiled bootloader (created after assembly)
+- `kernel.bin` - Compiled kernel (created after assembly)
+- `disk.img` - Disk image containing bootloader + kernel (created by dd)
 - `README.md` - This file
 
 ## Quick Start
 
 ```bash
-# Assemble
+# Assemble bootloader and kernel
 nasm -f bin bootloader.asm -o bootloader.bin
+nasm -f bin kernel.asm -o kernel.bin
 
-# Run
-qemu-system-x86_64 -drive format=raw,file=bootloader.bin
+# Create disk image
+dd if=/dev/zero of=disk.img bs=1M count=1
+dd if=bootloader.bin of=disk.img bs=512 count=1 conv=notrunc
+dd if=kernel.bin of=disk.img bs=512 seek=1 conv=notrunc
+
+# Run in QEMU
+qemu-system-x86_64 -drive format=raw,file=disk.img
 ```
+
+## Troubleshooting
+
+**"Error: Failed to load kernel!"**
+- Ensure `kernel.bin` exists and is at least 512 bytes
+- Verify the disk image was created correctly with `dd`
+- Check that KERNEL_SECTORS in bootloader.asm matches your kernel size
+
+**"Kernel loaded but no output"**
+- The kernel may not have print functions implemented
+- Verify kernel.asm has proper BIOS interrupt calls for printing
