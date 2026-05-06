@@ -1,12 +1,9 @@
-; Mystique OS Bootloader with Disk I/O
-; Loads kernel from disk and jumps to it
-
 org 0x7C00
 bits 16
 
-KERNEL_ADDR equ 0x10000; Load kernel at 0x10000
-KERNEL_SECTORS equ 10; Read 10 sectors (adjust as needed)
-KERNEL_SECTOR_START equ 1; Kernel starts at sector 1
+KERNEL_ADDR equ 0x10000
+KERNEL_SECTORS equ 10
+KERNEL_SECTOR_START equ 1
 
 start:
 xor ax, ax
@@ -46,14 +43,14 @@ mov es, ax
 xor bx, bx
 
 ; Read kernel sectors
-mov al, KERNEL_SECTORS; Number of sectors to read
-mov ch, 0; Cylinder 0
-mov cl, KERNEL_SECTOR_START; Start at sector 1
-mov dh, 0; Head 0
-mov dl, 0x80; Drive 0x80 (first hard disk)
+mov al, KERNEL_SECTORS
+mov ch, 0
+mov cl, KERNEL_SECTOR_START
+mov dh, 0
+mov dl, 0x80
 
-mov ah, 0x02; Read sectors function
-int 0x13; BIOS disk service
+mov ah, 0x02
+int 0x13
 
 jc .disk_error
 
