@@ -1,9 +1,12 @@
+; Mystique OS Bootloader with Disk I/O and Error Handling
+; Loads kernel from disk and jumps to it
+
 org 0x7C00
 bits 16
 
-KERNEL_ADDR equ 0x10000
-KERNEL_SECTORS equ 10
-KERNEL_SECTOR_START equ 1
+KERNEL_ADDR equ 0x10000; Load kernel at 0x10000
+KERNEL_SECTORS equ 10; Read 10 sectors (adjust as needed)
+KERNEL_SECTOR_START equ 1; Kernel starts at sector 1
 
 start:
 xor ax, ax
@@ -32,8 +35,8 @@ kernel_loaded:
 mov si, msg_success
 call print_string
 
-; Jump to kernel at 0x10000
-jmp 0x0000:0x10000
+; Jump to kernel at 0x10000 (segment:offset = 0x1000:0x0000)
+jmp 0x1000:0x0000
 
 ; Load kernel from disk into memory at KERNEL_ADDR
 load_kernel:
@@ -42,17 +45,26 @@ mov ax, 0x1000
 mov es, ax
 xor bx, bx
 
-; Read kernel sectors
-mov al, KERNEL_SECTORS
-mov ch, 0
-mov cl, KERNEL_SECTOR_START
-mov dh, 0
-mov dl, 0x80
-
-mov ah, 0x02
+; Reset disk drive
+xor ax, ax
+mov dl, 0x80; Drive 0x80 (first hard disk)
 int 0x13
 
+; Read kernel sectors
+mov al, KERNEL_SECTORS; Number of sectors to read
+mov ch, 0; Cylinder 0
+mov cl, KERNEL_SECTOR_START; Start at sector 1
+mov dh, 0; Head 0
+mov dl, 0x80; Drive 0x80 (first hard disk)
+
+mov ah, 0x02; Read sectors function
+int 0x13; BIOS disk service
+
 jc .disk_error
+
+; Verify sectors were read (check al for number of sectors read)
+cmp al, KERNEL_SECTORS
+jne .disk_error
 
 ; Return success
 mov ax, 1
