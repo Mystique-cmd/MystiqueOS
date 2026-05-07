@@ -1,12 +1,12 @@
-; Mystique OS Bootloader with Disk I/O and Error Handling
+; Mystique OS Bootloader with Floppy Disk I/O
 ; Loads kernel from disk and jumps to it
 
 org 0x7C00
 bits 16
 
 KERNEL_ADDR equ 0x10000; Load kernel at 0x10000
-KERNEL_SECTORS equ 10; Read 10 sectors (adjust as needed)
-KERNEL_SECTOR_START equ 1; Kernel starts at sector 1
+KERNEL_SECTORS equ 2; Read 2 sectors (1024 bytes)
+KERNEL_SECTOR_START equ 2; Kernel starts at sector 2 (sector 1 = bootloader)
 
 start:
 xor ax, ax
@@ -45,26 +45,22 @@ mov ax, 0x1000
 mov es, ax
 xor bx, bx
 
-; Reset disk drive
+; Reset disk drive (floppy)
 xor ax, ax
-mov dl, 0x80; Drive 0x80 (first hard disk)
+mov dl, 0x00; Drive 0x00 (floppy drive A:)
 int 0x13
 
-; Read kernel sectors
+; Read kernel sectors from floppy
 mov al, KERNEL_SECTORS; Number of sectors to read
 mov ch, 0; Cylinder 0
-mov cl, KERNEL_SECTOR_START; Start at sector 1
+mov cl, KERNEL_SECTOR_START; Start at sector 2
 mov dh, 0; Head 0
-mov dl, 0x80; Drive 0x80 (first hard disk)
+mov dl, 0x00; Drive 0x00 (floppy drive)
 
 mov ah, 0x02; Read sectors function
 int 0x13; BIOS disk service
 
 jc .disk_error
-
-; Verify sectors were read (check al for number of sectors read)
-cmp al, KERNEL_SECTORS
-jne .disk_error
 
 ; Return success
 mov ax, 1
