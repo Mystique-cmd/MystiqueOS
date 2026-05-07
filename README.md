@@ -81,12 +81,47 @@ Kernel loaded and running!
 
 Then it will hang in an infinite loop (normal behavior). To exit QEMU, press `Ctrl+Alt+Q` or close the window.
 
-## What the Bootloader Does
+## Architecture: Bootloader vs Kernel
 
+**Why are they separate files?**
+
+The bootloader and kernel have different roles and constraints:
+
+### Bootloader (bootloader.asm)
+- **Fixed size**: Exactly 512 bytes (1 sector)
+- **Purpose**: Initialize hardware and load the kernel from disk
+- **Location**: Sector 0 (loaded by BIOS at 0x7C00)
+- **Loaded by**: BIOS automatically on boot
+- **Cannot grow**: Limited to 512 bytes; uses BIOS services
+
+### Kernel (kernel.asm)
+- **Variable size**: Can grow to multiple sectors/kilobytes
+- **Purpose**: Main OS code (paging, memory protection, user programs, etc.)
+- **Location**: Sectors 1+ (loaded by bootloader at 0x10000)
+- **Loaded by**: Bootloader via disk I/O (int 0x13)
+- **Expandable**: Can implement full OS features
+
+**Boot sequence:**
+```
+1. BIOS loads bootloader from sector 0 → 0x7C00
+2. Bootloader displays messages
+3. Bootloader reads kernel from sectors 1+ → 0x10000 (using BIOS int 0x13)
+4. Bootloader jumps to kernel at 0x10000
+5. Kernel runs OS code
+```
+
+## What Each Component Does
+
+### Bootloader
 1. **Displays boot messages** - Shows loading status
 2. **Loads kernel from disk** - Reads sectors 1+ from the hard disk using BIOS int 0x13
 3. **Verifies load success** - Checks if kernel loaded without errors
 4. **Transfers control** - Jumps to kernel entry point at 0x10000
+
+### Kernel
+1. **Initializes kernel environment** - Sets up segments and stack
+2. **Prints kernel message** - Confirms successful load
+3. **Ready for expansion** - Framework for paging, memory protection, user programs
 
 ## Bootloader Configuration
 
