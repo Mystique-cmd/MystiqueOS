@@ -63,10 +63,15 @@ dd if=kernel.bin of=disk.img bs=512 seek=1 conv=notrunc
 
 ### Step 3: Run in QEMU
 
-Boot the disk image in QEMU:
+Boot the disk image as a floppy drive in QEMU (recommended for better BIOS support):
 
 ```bash
-qemu-system-x86_64 -drive format=raw,file=disk.img
+qemu-system-x86_64 -fda disk.img
+```
+
+Or alternatively:
+```bash
+qemu-system-x86_64 -drive file=disk.img,format=raw,if=floppy
 ```
 
 ### Expected Output
@@ -129,14 +134,15 @@ Edit these constants in `bootloader.asm` to customize behavior:
 
 ```asm
 KERNEL_ADDR equ 0x10000		; Memory address to load kernel
-KERNEL_SECTORS equ 10			; Number of sectors to read (each = 512 bytes)
-KERNEL_SECTOR_START equ 1		; Starting sector on disk (1 = after bootloader)
+KERNEL_SECTORS equ 2			; Number of sectors to read (each = 512 bytes)
+KERNEL_SECTOR_START equ 2		; Starting sector on disk (2 = after bootloader)
 ```
 
-**Sector sizes:**
-- 1 sector = 512 bytes
-- 10 sectors = 5,120 bytes (default)
-- Adjust based on your kernel size
+**Important notes:**
+- **Drive**: Uses floppy drive (0x00) for better BIOS compatibility in QEMU
+- **Sector 1**: Contains bootloader (512 bytes)
+- **Sectors 2+**: Contain kernel code
+- Adjust `KERNEL_SECTORS` based on your kernel size
 
 ## Files
 
@@ -159,17 +165,25 @@ dd if=/dev/zero of=disk.img bs=1M count=1
 dd if=bootloader.bin of=disk.img bs=512 count=1 conv=notrunc
 dd if=kernel.bin of=disk.img bs=512 seek=1 conv=notrunc
 
-# Run in QEMU
-qemu-system-x86_64 -drive format=raw,file=disk.img
+# Run in QEMU (as floppy drive)
+qemu-system-x86_64 -fda disk.img
 ```
 
 ## Troubleshooting
 
 **"Error: Failed to load kernel!"**
-- Ensure `kernel.bin` exists and is at least 512 bytes
-- Verify the disk image was created correctly with `dd`
-- Check that KERNEL_SECTORS in bootloader.asm matches your kernel size
+- Ensure both `bootloader.bin` and `kernel.bin` are created
+- Verify the disk image was created correctly:
+  ```bash
+  hexdump -C disk.img | head -20
+  ```
+- Check that kernel starts at sector 2 with `dd seek=1`
+- Ensure `KERNEL_SECTORS` matches your kernel size
 
 **"Kernel loaded but no output"**
 - The kernel may not have print functions implemented
-- Verify kernel.asm has proper BIOS interrupt calls for printing
+- Verify `kernel.asm` has proper BIOS interrupt calls (int 0x10)
+
+**QEMU won't start the bootloader**
+- Use floppy drive mode: `qemu-system-x86_64 -fda disk.img`
+- Ensure disk.img exists and is at least 1MB
