@@ -42,9 +42,9 @@ mov es, ax
 mov ss, ax
 mov sp, 0xFFFE
 
-; Print message before entering protected mode
+; Print message before entering protected mode using BIOS
 mov si, msg_before_pm
-call print_string_16
+call print_string_bios
 
 ; === ENTERING PROTECTED MODE ===
 cli
@@ -64,15 +64,18 @@ mov es, ax
 mov ss, ax
 mov esp, 0xFFFE
 
-; If we reach here, protected mode is working!
-; Hang with a recognizable pattern
-mov eax, 0x12341234
+; Write directly to video memory (no BIOS needed)
+; Video memory starts at 0xB8000
+mov edi, 0xB8000
+mov esi, msg_after_pm_offset
+call print_string_pm
 
-.pm_loop:
-jmp .pm_loop; Infinite loop in protected mode
+; Infinite loop
+jmp $
 
+; BIOS print (real mode only)
 bits 16
-print_string_16:
+print_string_bios:
 .loop:
 lodsb
 cmp al, 0
@@ -86,8 +89,31 @@ jmp .loop
 .done:
 ret
 
+; Protected mode print using video memory
+; Input: edi = video memory address, esi = string offset from kernel start
+bits 32
+print_string_pm:
+add esi, 0x10000; Convert offset to absolute address
+.loop:
+mov al, [esi]
+cmp al, 0
+je .done
+
+; Write character and attribute to video memory
+mov byte [edi], al; Character
+mov byte [edi + 1], 0x0F; Attribute (white on black)
+add edi, 2
+add esi, 1
+jmp .loop
+.done:
+ret
+
 bits 16
-msg_before_pm db "Kernel: Entering protected mode...", 13, 10, 0
+msg_before_pm db "Kernel: Setting up protected mode...", 13, 10, 0
+
+; Message location relative to kernel start
+msg_after_pm_offset equ msg_after_pm - kernel_start
+msg_after_pm db "Kernel: Protected mode enabled!", 0
 
 ; Pad kernel to 2 sectors
 times 1024 - ($ - $$) db 0
