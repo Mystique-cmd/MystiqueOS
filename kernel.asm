@@ -6,30 +6,36 @@ bits 16
 
 ; GDT
 gdt_start:
+; Null descriptor
 dq 0x0000000000000000
 
-dw 0xFFFF
-dw 0x0000
-db 0x00
-db 0b10011010
-db 0b11001111
-db 0x00
+; Code segment: 4GB, executable, readable
+dw 0xFFFF        ; Limit (15:0)
+dw 0x0000        ; Base (15:0)
+db 0x00          ; Base (23:16)
+db 0x9A          ; Access byte: 10011010 (present, privilege 00, code, readable)
+db 0xCF          ; Flags: 11001111 (granularity 4KB, 32-bit)
+db 0x00          ; Base (31:24)
 
-dw 0xFFFF
-dw 0x0000
-db 0x00
-db 0b10010010
-db 0b11001111
-db 0x00
+; Data segment: 4GB, writable
+dw 0xFFFF        ; Limit (15:0)
+dw 0x0000        ; Base (15:0)
+db 0x00          ; Base (23:16)
+db 0x92          ; Access byte: 10010010 (present, privilege 00, data, writable)
+db 0xCF          ; Flags: 11001111 (granularity 4KB, 32-bit)
+db 0x00          ; Base (31:24)
 
 gdt_end:
 
 gdt_descriptor:
 dw gdt_end - gdt_start - 1
-dd gdt_start
+dq gdt_start
 
 CODE_SEL equ 8
 DATA_SEL equ 16
+
+pm_msg db "Protected Mode Enabled!"
+pm_msg_len equ $ - pm_msg
 
 kernel_start:
 xor ax, ax
@@ -90,8 +96,5 @@ jmp .write_loop
 
 .done_msg:
 jmp $
-
-pm_msg db "Protected Mode Enabled!"
-pm_msg_len equ $ - pm_msg
 
 times 1024 - ($ - $$) db 0
