@@ -1,39 +1,35 @@
-; Mystique OS Kernel with Protected Mode
+; Mystique OS Kernel - Minimal Protected Mode Test
 ; Entry point at 0x10000
 
 org 0x10000
 bits 16
 
-; GDT (Global Descriptor Table)
+; GDT
 gdt_start:
-; GDT Entry 0: Null descriptor
 dq 0x0000000000000000
 
-; GDT Entry 1: Code segment (Ring 0)
-dw 0xFFFF; Limit (bits 0-15)
-dw 0x0000; Base (bits 0-15)
-db 0x00; Base (bits 16-23)
-db 0b10011010; Access byte
-db 0b11001111; Flags
-db 0x00; Base (bits 24-31)
+dw 0xFFFF
+dw 0x0000
+db 0x00
+db 0b10011010
+db 0b11001111
+db 0x00
 
-; GDT Entry 2: Data segment (Ring 0)
-dw 0xFFFF; Limit (bits 0-15)
-dw 0x0000; Base (bits 0-15)
-db 0x00; Base (bits 16-23)
-db 0b10010010; Access byte
-db 0b11001111; Flags
-db 0x00; Base (bits 24-31)
+dw 0xFFFF
+dw 0x0000
+db 0x00
+db 0b10010010
+db 0b11001111
+db 0x00
 
 gdt_end:
 
-; GDT Descriptor
 gdt_descriptor:
 dw gdt_end - gdt_start - 1
 dd gdt_start
 
-CODE_SEL equ 1 * 8
-DATA_SEL equ 2 * 8
+CODE_SEL equ 8
+DATA_SEL equ 16
 
 kernel_start:
 xor ax, ax
@@ -42,78 +38,60 @@ mov es, ax
 mov ss, ax
 mov sp, 0xFFFE
 
-; Print message before entering protected mode using BIOS
-mov si, msg_before_pm
-call print_string_bios
+; Print using BIOS (we know this works)
+mov al, 'K'
+mov ah, 0x0E
+int 0x10
 
-; === ENTERING PROTECTED MODE ===
+mov al, 'E'
+mov ah, 0x0E
+int 0x10
+
+mov al, 'R'
+mov ah, 0x0E
+int 0x10
+
+; Now try to enter protected mode
 cli
+
+; Load GDT
 lgdt [gdt_descriptor]
 
+; Set PE bit
 mov eax, cr0
-or eax, 0x1
+or eax, 1
 mov cr0, eax
 
-jmp CODE_SEL:protected_mode_start
+; Far jump to protected mode (using explicit absolute address)
+jmp CODE_SEL:protected_start_abs
 
 bits 32
-protected_mode_start:
+protected_start_abs:
 mov ax, DATA_SEL
 mov ds, ax
 mov es, ax
 mov ss, ax
-mov esp, 0xFFFE
 
-; Write directly to video memory (no BIOS needed)
-; Video memory starts at 0xB8000
+; Write "Protected Mode Enabled!" to video memory at 0xB8000
 mov edi, 0xB8000
-mov esi, msg_after_pm_offset
-call print_string_pm
+mov esi, pm_msg
+mov ecx, pm_msg_len
 
-; Infinite loop
-jmp $
-
-; BIOS print (real mode only)
-bits 16
-print_string_bios:
-.loop:
-lodsb
-cmp al, 0
-je .done
-
-mov ah, 0x0E
-mov bh, 0
-mov bl, 0x07
-int 0x10
-jmp .loop
-.done:
-ret
-
-; Protected mode print using video memory
-; Input: edi = video memory address, esi = string offset from kernel start
-bits 32
-print_string_pm:
-add esi, 0x10000; Convert offset to absolute address
-.loop:
-mov al, [esi]
-cmp al, 0
-je .done
-
-; Write character and attribute to video memory
-mov byte [edi], al; Character
-mov byte [edi + 1], 0x0F; Attribute (white on black)
+.write_loop:
+cmp ecx, 0
+je .done_msg
+mov al, byte [esi]
+mov byte [edi], al
+mov byte [edi + 1], 0x0F  ; White text on black background
 add edi, 2
 add esi, 1
-jmp .loop
-.done:
-ret
+dec ecx
+jmp .write_loop
 
-bits 16
-msg_before_pm db "Kernel: Setting up protected mode...", 13, 10, 0
+.done_msg:
+jmp $
 
-; Message location relative to kernel start
-msg_after_pm_offset equ msg_after_pm - kernel_start
-msg_after_pm db "Kernel: Protected mode enabled!", 0
+pm_msg db "Protected Mode Enabled!"
+pm_msg_len equ $ - pm_msg
 
-; Pad kernel to 2 sectors
 times 1024 - ($ - $$) db 0
