@@ -29,7 +29,7 @@ gdt_end:
 
 gdt_descriptor:
 dw gdt_end - gdt_start - 1
-dq gdt_start
+dd gdt_start
 
 CODE_SEL equ 8
 DATA_SEL equ 16
